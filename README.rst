@@ -46,7 +46,8 @@ done behind the scenes, so that users can *focus on their data*,
 rather than spending time implementing I/O::
 
   >>> import pycoda as pcd
-
+  >>> import numpy as np
+  
 Initialize a data object ``my_dat``::
 
   >>>  my_dat = pcd.data()
@@ -71,10 +72,13 @@ Sub-classing
 ============
 
 A key feature of PyCoDa is the ability to subclass the ``pycoda.data``
-class. For example, ff we create a module ``my_data_module.py`` that
+class. For example, if we create a module ``my_data_module.py`` that
 contains::
 
-  class my_data(pycoda.data):
+  import pycoda as pcd
+  import numpy as np
+
+  class my_data(pcd.data):
       
       def xymesh(self, ):
           return np.meshgrid(self['x'], self['y'])
@@ -105,5 +109,45 @@ defined in a ``my_data_module.py``, the class will be preserved::
 So that we can still do::
 
   >>> xgrid, ygrid = my_dat2_copy.xymesh()
+
+Furthermore, if we add or modify our sub-classes these changes will be
+available when we load the data.  For example, assume we change our
+``my_data`` class to be::
+  
+    class my_data(pcd.data):
+    
+        # Here we redefine xymesh to be a property and use __xymesh to cache it.
+        @property
+        def xymesh(self, ):
+            if not hasattr(self, '__xymesh'):
+                self.__xymesh = np.meshgrid(self['x'], self['y'])
+            return self.__xymesh
+    
+        def distance(self, x, y):
+            """
+            Calculate the distance between the point `x`,`y`, and all of
+            the points in the grid.
+            """
+            xg, yg = self.xymesh
+            return np.sqrt((xg - x) ** 2 + (yg - y) ** 2)
+
+Now, in a new Python interpreter - so that our module reloads - we can do::
+
+  >>> mydat2 = pcd.load('my_data2.h5')
+  >>> dist = mydat2.distance(50, 150)
+  >>> print(dist)
+  [[ 50.          50.00249994  50.009999   ...,  70.00714249  70.35801305
+     70.71067812]
+   [ 49.5         49.50252519  49.51009998 ...,  69.65091528  70.00357134
+     70.35801305]
+   [ 49.          49.00255095  49.01020302 ...,  69.29646456  69.65091528
+     70.00714249]
+   ..., 
+   [ 49.          49.00255095  49.01020302 ...,  69.29646456  69.65091528
+     70.00714249]
+   [ 49.5         49.50252519  49.51009998 ...,  69.65091528  70.00357134
+     70.35801305]
+   [ 50.          50.00249994  50.009999   ...,  70.00714249  70.35801305
+     70.71067812]]
 
 Is that cool, or what?!
