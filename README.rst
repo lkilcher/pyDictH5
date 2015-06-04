@@ -1,9 +1,14 @@
 Introduction
 ============
 
-The Python Compound Data (PyCoDa) library is a lightweight framework
-and syntax for working with compound data composed primarily of NumPy
-arrays. PyCoDa utilizes h5py to provide efficient file I/O in a
+.. _NumPy: http://www.numpy.org/
+.. _Pandas: http://pandas.pydata.org/
+.. _h5py: http://www.h5py.org/
+.. _PyCoDa: http://githumb.com/lkilcher/pyCoDa/
+
+The Python Compound Data (PyCoDa_) library is a lightweight framework
+and syntax for working with compound data composed primarily of NumPy_
+arrays. PyCoDa utilizes h5py_ to provide efficient file I/O in a
 transparent and standardized format.
 PyCoDa uses a standardized syntax for working with arrays of data that
 are related in simple to complex ways. 
@@ -26,7 +31,7 @@ PyCoDa is meant for NumPy users who:
 
 A) Want standardized data (object) file I/O.
 
-B) Frequently utilize N-dimensional data (i.e. find Pandas DataFrames
+B) Frequently utilize N-dimensional data (i.e. find Pandas_ DataFrames
    inadequate),
 
 C) Want a set of unique, simple NumPy arrays for working with data
@@ -62,31 +67,43 @@ Set ``my_dat``'s data::
   >>> my_dat_copy.x == my_dat.x
   True
 
-A key feature of PyCoDa is the ability to subclass the pycoda.data
-class, for example::
+Sub-classing
+============
+
+A key feature of PyCoDa is the ability to subclass the ``pycoda.data``
+class. For example, ff we create a module ``my_data_module.py`` that
+contains::
 
   class my_data(pycoda.data):
       
       def xymesh(self, ):
           return np.meshgrid(self['x'], self['y'])
 
-Now initialize the new data type and populate it::
+We can initialize and populate this data type, and utilize the
+``xymesh`` method::
 
-  >>> my_dat2 = my_data()
+  >>> import my_data_module as mdm
+  >>> my_dat2 = mdm.my_data()
       
   >>> my_dat2['x'] = np.linspace(50, 100, 101)
   >>> my_dat2['y'] = np.linspace(100, 200, 201)
   >>> xgrid, ygrid = my_dat2.xymesh()
 
-A major advantage of pycodata.data subclassing is that, as long as the
-subclass is available consistently between write and read, the dtype
-is preserved. This suggests that sub-classes should be defined in
+A major advantage of sub-classing ``pycoda.data`` is that, so long
+as the subclass is available consistently between write and read, the
+dtype is preserved. This is why it is useful to define sub-classes in
 modules (or packages) of their own. Then, so long as those modules or
 packages are on the Python path, PyCoDa will import and utilize those
 classes transparently.  For example, if the ``my_data`` class is
 defined in a ``my_data_module.py``, the class will be preserved::
 
-
   >>> my_dat2.to_hdf5('my_data2.h5')
-  >>> my_dat2.__class__
+  >>> my_dat2_copy = pcd.load('my_data2.h5')
+  >>> my_dat2_copy.__class__
   my_data_module.my_data
+
+So that we can still do::
+
+  >>> xgrid, ygrid = my_dat2_copy.xymesh()
+
+Is that cool, or what?!
