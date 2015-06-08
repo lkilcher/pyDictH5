@@ -65,7 +65,15 @@ def load_hdf5(buf, group=None, dat_class=None):
             if dat.__class__ is h5py.Group:
                 out[nm] = load_hdf5(dat)
             else:
-                out[nm] = np.array(dat)
+                if dat.dtype == 'O' and '_type' \
+                   in dat.attrs and dat.attrs['_type'] == 'NumPy Object Array':
+                    shp = dat.shape
+                    out[nm] = np.empty(shp, dtype='O')
+                    for idf in xrange(dat.size):
+                        ida = np.unravel_index(idf, shp)
+                        out[nm][ida] = cPickle.loads(dat[ida])
+                else:
+                    out[nm] = np.array(dat)
     else:
         out = np.array(buf)
     if fl:
@@ -74,21 +82,53 @@ def load_hdf5(buf, group=None, dat_class=None):
 
 
 class data(dict):
+    """
+    The base PyCoDa class.
 
-    def append(self, other):
+    This class supports temporary attribute variables with leading
+    underscores (e.g. '_temp'). However, if a dict-entry already
+    exists with that value, it *will* point to that entry.
+
+    This class is capable of storing object arrays. This is done by
+    pickling each item in the object array.
+    
+    """
+
+    def __repr__(self, ):
+        outstr = '{}: Data Object with Keys:\n'.format(self.__class__)
+        for k in self:
+            outstr += '  {}\n'.format(k)
+        return outstr
+    
+    def __copy__(self, ):
+        out = self.__class__()
         for nm, dat in self.iteritems():
-            if isinstance(dat, np.ndarray):
-                self[nm] = np.concatenate((self[nm],
-                                           other[nm]),
-                                          axis=0)
-            else:
-                dat.append(other[nm])
+            out[nm] = dat.copy()
+        return out
+
+    copy = __copy__
+
+    def __setattr__(self, nm, val):
+        if nm.startswith('_') and (nm not in self):
+            # Support for 'temporary variables' that are not added to
+            # the dictionary, and therefore not included in I/O
+            # operations.
+            object.__setattr__(self, nm, val)
+        else:
+            self.__setitem__(nm, val)
 
     def __getattr__(self, nm):
         try:
             return self[nm]
         except KeyError:
             raise AttributeError("'{}' object has no attribute '{}'".format(self.__class__, nm))
+
+    def __setitem__(self, indx, val):
+        if not isinstance(indx, basestring):
+            raise IndexError(
+                "<class 'PyCoDa.base.data'> objects"
+                " only support string indexes.".format(self.__class__))
+        dict.__setitem__(self, indx, val)
 
     def __getitem__(self, indx):
         if isinstance(indx, indx_subset_valid + (tuple, )):
@@ -97,6 +137,9 @@ class data(dict):
             return dict.__getitem__(self, indx)
 
     def to_hdf5(self, buf, chunks=True, compression='gzip'):
+        """
+        Write the data in this object to an hdf5 file.
+        """
         if isinstance(buf, basestring):
             isfile = True
             buf = h5py.File(buf, 'w')
@@ -110,10 +153,78 @@ class data(dict):
                 dat.to_hdf5(buf.create_group(nm),
                             chunks=chunks, compression=compression)
             else:
-                buf.create_dataset(name=nm, data=dat,
-                                   chunks=chunks, compression=compression)
+                if dat.dtype == 'O':
+                    shp = dat.shape
+                    ds = buf.create_dataset(nm, shp, dtype=h5py.special_dtype(vlen=bytes))
+                    ds.attrs['_type'] = 'NumPy Object Array'
+                    for idf, val in enumerate(dat.flat):
+                        ida = np.unravel_index(idf, shp)
+                        ds[ida] = cPickle.dumps(val)
+                else:
+                    buf.create_dataset(name=nm, data=dat,
+                                       chunks=chunks, compression=compression)
         if isfile:
             buf.close()
+
+
+class immutable(data):
+    pass
+
+
+class flat(data):
+    """
+    This class of data assumes that all data in this class have the
+    same shape in the first dimension. This class makes it possible to
+    slice, and sub-index the data within it from the object's top
+    level.
+
+    Notes
+    -----
+
+    For example, if 'dat' is defined as::
+
+        dat = flat()
+        dat.time = np.arange(10)
+        dat.u = 2 + 0.6 * np.arange(10)
+        dat.v = 0.3 * np.ones(10)
+        dat.w = 0.1 * np.ones(10)
+
+    The data within that structure can be sub-indexed by::
+
+        subdat = dat[:5]
+
+    Also, if you have a similarly defined data object::
+
+        dat2 = flat()
+        dat2.time = np.arange(10, 20)
+        dat2.u = 0.8 * np.arange(10)
+        dat2.v = 0.6 * np.ones(10)
+        dat2.w = 0.2 * np.ones(10)
+
+    One can join these data object by:
+
+        dat.append(dat2)
+
+    """
+
+    def append(self, other):
+        """
+        Append another PyCoDa data object to this one.  This method
+        assumes all arrays should be appended (concatenated) along
+        axis 0.
+
+        The appended object must have matching keys and values with
+        the same data types.
+
+        Overload this method to implement alternate appending schemes.
+        """
+        for nm, dat in self.iteritems():
+            if isinstance(dat, np.ndarray):
+                self[nm] = np.concatenate((self[nm],
+                                           other[nm]),
+                                          axis=0)
+            else:
+                dat.append(other[nm])
 
     def subset(self, inds, **kwargs):
         """
@@ -129,7 +240,7 @@ class data(dict):
                index pairs. The 'name' is the name of the sub-data
                field, and the indices should be like `inds`.
         """
-        if (inds.__class__ is tuple and len(tuple) == 2
+        if (inds.__class__ is tuple and len(inds) == 2
             and isinstance(inds[0], indx_subset_valid)
             and isinstance(inds[1], dict)):
             return self.subset(inds[0], **inds[1])
@@ -143,11 +254,11 @@ class data(dict):
         return out
 
 
-class tabular(data):
+class tabular(flat):
     """
-    A class for holding 'spreadsheet' type data.
+    A class for holding tabular (e.g. 'spreadsheet') type data.
 
-    This data-type is assumed to be planar (2-D, or rows and columns)
+    This data-type is assumed to be planar (2-D, rows and columns)
     only.
     """
     def to_dataframe(self,):
@@ -175,11 +286,11 @@ class tabular(data):
         buf.close()
 
 
-class geodat(data):
+class geodat(flat):
     """
     A class for holding 'gis' type data.
 
-    This data is assumed to have attributes lat/lon.
+    This data is assumed to have lat/lon attributes.
     """
 
     def llrange(self, lon=None, lat=None):
