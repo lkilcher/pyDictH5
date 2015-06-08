@@ -1,0 +1,5 @@
+- Save to Matlab
+
+Open questions:
+- Should non-string keys be allowed? Pickle the key prior to writing?
+- 
