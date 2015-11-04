@@ -56,7 +56,8 @@ def load_hdf5(buf, group=None, dat_class=None):
     if dat_class is None:
         try:
             out = cPickle.loads(buf.attrs['__pyclass__'])()
-        except:
+        except AttributeError:
+            print("Warning: Class '{}' not found, defaulting to generic 'pycoda.data'.".format(buf.attrs['__pyclass__']))
             out = data()
     else:
         out = dat_class()
@@ -71,7 +72,10 @@ def load_hdf5(buf, group=None, dat_class=None):
                     out[nm] = np.empty(shp, dtype='O')
                     for idf in xrange(dat.size):
                         ida = np.unravel_index(idf, shp)
-                        out[nm][ida] = cPickle.loads(dat[ida])
+                        if dat[ida] == '':
+                            out[nm][ida] = None
+                        else:
+                            out[nm][ida] = cPickle.loads(dat[ida])
                 else:
                     out[nm] = np.array(dat)
     else:
@@ -91,7 +95,7 @@ class data(dict):
 
     This class is capable of storing object arrays. This is done by
     pickling each item in the object array.
-    
+
     """
 
     def __repr__(self, ):
@@ -99,7 +103,7 @@ class data(dict):
         for k in self:
             outstr += '  {}\n'.format(k)
         return outstr
-    
+
     def __copy__(self, ):
         out = self.__class__()
         for nm, dat in self.iteritems():
@@ -117,11 +121,19 @@ class data(dict):
         else:
             self.__setitem__(nm, val)
 
-    def __getattr__(self, nm):
+    def __getstate__(self, ):
+        return self
+
+    def __getattribute__(self, nm):
         try:
-            return self[nm]
-        except KeyError:
-            raise AttributeError("'{}' object has no attribute '{}'".format(self.__class__, nm))
+            return dict.__getattribute__(self, nm)
+        except AttributeError:
+            try:
+                return self[nm]
+            except KeyError:
+                raise AttributeError("'{}' object has not attribute '{}'"
+                                     .format(str(self.__class__).split("'")[-2].split('.')[-1],
+                                             nm))
 
     def __setitem__(self, indx, val):
         if not isinstance(indx, basestring):
@@ -129,12 +141,6 @@ class data(dict):
                 "<class 'PyCoDa.base.data'> objects"
                 " only support string indexes.".format(self.__class__))
         dict.__setitem__(self, indx, val)
-
-    def __getitem__(self, indx):
-        if isinstance(indx, indx_subset_valid + (tuple, )):
-            return self.subset(indx)
-        else:
-            return dict.__getitem__(self, indx)
 
     def to_hdf5(self, buf, chunks=True, compression='gzip'):
         """
@@ -165,10 +171,6 @@ class data(dict):
                                        chunks=chunks, compression=compression)
         if isfile:
             buf.close()
-
-
-class immutable(data):
-    pass
 
 
 class flat(data):
@@ -207,6 +209,31 @@ class flat(data):
 
     """
 
+    def empty_like(self, npt, array_creator=np.empty):
+        """
+        Create empty arrays with first dimension of length `npt`, with
+        other dimensions consistent with this data object.
+
+        `array_creator` may be used to specify the function that creates
+        the arrays (e.g. np.zeros, np.ones). The default is np.empty.
+
+        """
+        out = self.__class__()
+        for nm, dat in self.iteritems():
+            if isinstance(dat, np.ndarray):
+                shp = list(dat.shape)
+                shp[0] = npt
+                out[nm] = array_creator(shp, dtype=dat.dtype,)
+            elif hasattr(self, 'empty_like'):
+                out[nm] = dat.empty_like(npt, array_creator=array_creator)
+        return out
+
+    def __getitem__(self, indx):
+        if isinstance(indx, indx_subset_valid + (tuple, )):
+            return self.subset(indx)
+        else:
+            return dict.__getitem__(self, indx)
+
     def append(self, other):
         """
         Append another PyCoDa data object to this one.  This method
@@ -240,15 +267,19 @@ class flat(data):
                index pairs. The 'name' is the name of the sub-data
                field, and the indices should be like `inds`.
         """
-        if (inds.__class__ is tuple and len(inds) == 2
-            and isinstance(inds[0], indx_subset_valid)
-            and isinstance(inds[1], dict)):
+        if (inds.__class__ is tuple and len(inds) == 2 and
+                isinstance(inds[0], indx_subset_valid) and
+                isinstance(inds[1], dict)):
             return self.subset(inds[0], **inds[1])
         out = self.__class__()
         for nm in self:
             if isinstance(self[nm], data):
                 if nm in kwargs:
                     out[nm] = self[nm][kwargs[nm]]
+                elif isinstance(self[nm], flat):
+                    out[nm] = self[nm][inds]
+                #else:
+                    #print nm, self[nm].__class__
             else:
                 out[nm] = self[nm][inds]
         return out

@@ -71,7 +71,7 @@ coerced toward 2 dimensiones (DataFrames).
 Why use PyCoDa vs. Pickle?
 --------------------------
 
-ADD TEXT: PyCoDa is faster for large arrays...
+ADD TEXT: PyCoDa (hdf5 I/O via h5py) is faster for large arrays...
 
 
 Usage
