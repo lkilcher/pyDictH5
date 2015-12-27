@@ -40,6 +40,8 @@ import pandas as pd
 import h5py
 import cPickle
 from . import _version as ver
+import numpy.testing as nptest
+from copy import deepcopy
 
 indx_subset_valid = (slice, np.ndarray, list, int)
 
@@ -48,9 +50,9 @@ def load_hdf5(buf, group=None, dat_class=None):
     """
     Load a data object from an hdf5 file.
     """
-    fl = None
     if isinstance(buf, basestring):
-        fl = buf = h5py.File(buf, 'r')
+        with h5py.File(buf, 'r') as fl:
+            return load_hdf5(fl, group=group, dat_class=dat_class)
     if group is not None:
         buf = buf[group]
     if dat_class is None:
@@ -80,9 +82,44 @@ def load_hdf5(buf, group=None, dat_class=None):
                     out[nm] = np.array(dat)
     else:
         out = np.array(buf)
-    if fl:
-        fl.close()
     return out
+
+
+def _equiv_dict(d1, d2, print_diff=False):
+    """Test whether two dictionary-like are equivalent.
+
+    This includes support for arrays so that you don't get a:
+
+      ValueError: The truth value of an array with more than one
+      element is ambiguous. Use a.any() or a.all()
+
+    """
+    if type(d1) is not type(d2):
+        return False
+    if set(d2.keys()) == set(d1.keys()):
+        for ky in d1:
+            try:
+                if isinstance(d1[ky], np.ndarray):
+                    assert type(d1[ky]) is type(d2[ky])
+                    nptest.assert_equal(d1[ky], d2[ky])
+                elif isinstance(d1[ky], dict):
+                    assert _equiv_dict(d1[ky], d2[ky],
+                                       print_diff=print_diff)
+                else:
+                    assert d1[ky] == d2[ky]
+            except AssertionError:
+                if print_diff:
+                    print('The values in {} do not match between the data objects.'
+                          .format(ky, d1, d2))
+                return False
+        return True
+    if print_diff:
+        dif1 = set(d1.keys()) - set(d2.keys())
+        dif2 = set(d2.keys()) - set(d1.keys())
+        print("The list of items are not the same.\n"
+              "Entries in 1 that are not in 2: {}\n"
+              "Entries in 2 that are not in 1: {}".format(list(dif1), list(dif2)))
+    return False
 
 
 class data(dict):
@@ -111,6 +148,12 @@ class data(dict):
         return out
 
     copy = __copy__
+
+    def __eq__(self, other, print_diff=False):
+        """
+        Test for equivalence between data objects.
+        """
+        return _equiv_dict(self, other, print_diff=print_diff)
 
     def __setattr__(self, nm, val):
         if nm.startswith('_') and (nm not in self):
@@ -285,6 +328,48 @@ class flat(data):
         return out
 
 
+class TimeBased(data):
+    """
+    This class of data assumes that all data in an instance has the
+    same last dimension. This makes it possible to slice and sub-index
+    the data within it from the object's top level.
+
+    Notes
+    -----
+
+    For example, if 'dat' is defined as::
+
+        dat = TimeBased()
+        dat.time = np.arange(10)
+        dat.u = np.vstack(2 + 0.6 * np.arange(10),
+                          0.3 * np.ones(10),
+                          0.1 * np.ones(10))
+
+    The data within that structure can be sub-indexed by::
+
+        subdat = dat[:5]
+
+    Also, if you have a similarly defined data object::
+
+        dat2 = flat()
+        dat2.time = np.arange(10, 20)
+        dat2.u = np.vstack(0.8 * np.arange(10),
+                           0.6 * np.ones(10),
+                           0.2 * np.ones(10))
+
+    One can join these data object by:
+
+        dat.append(dat2)
+
+    """
+
+    def __getitem__(self, indx):
+        if isinstance(indx, indx_subset_valid + (tuple, )):
+            return self.subset(indx)
+        else:
+            return dict.__getitem__(self, indx)
+
+
 class tabular(flat):
     """
     A class for holding tabular (e.g. 'spreadsheet') type data.
@@ -337,3 +422,22 @@ class geodat(flat):
         if len(other_inds) > 0:
             return inds, other_inds
         return inds
+
+
+class marray(np.ndarray):
+
+    def __new__(cls, input_array, meta={}):
+        # Input array is an already formed ndarray instance
+        # We first cast it to be our class type
+        obj = np.asarray(input_array).view(cls)
+        # add the new attribute to the created instance
+        obj.meta = meta
+        # Finally, we must return the newly created object:
+        return obj
+
+    def __array_finalize__(self, obj):
+        # see InfoArray.__array_finalize__ for comments
+        if obj is None:
+            return
+        # tmp = getattr(obj, 'meta', None)
+        # self.meta = deepcopy(tmp)
