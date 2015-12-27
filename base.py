@@ -45,6 +45,8 @@ from copy import deepcopy
 
 indx_subset_valid = (slice, np.ndarray, list, int)
 
+group_string_sep = '.'
+
 
 def load_hdf5(buf, group=None, dat_class=None):
     """
@@ -135,6 +137,25 @@ class data(dict):
 
     """
 
+    def __getitem__(self, indx):
+        if group_string_sep not in indx:
+            return dict.__getitem__(self, indx)
+        else:
+            try:
+                return dict.__getitem__(self, indx)
+            except KeyError:
+                tmp = self
+                for ky in indx.split(group_string_sep):
+                    tmp = dict.__getitem__(tmp, ky)
+                return tmp
+
+    def __contains__(self, key):
+        try:
+            self[key]
+            return True
+        except KeyError:
+            return False
+
     def __repr__(self, ):
         outstr = '{}: Data Object with Keys:\n'.format(self.__class__)
         for k in self:
@@ -186,7 +207,17 @@ class data(dict):
             raise IndexError(
                 "<class 'PyCoDa.base.data'> objects"
                 " only support string indexes.".format(self.__class__))
-        dict.__setitem__(self, indx, val)
+        if group_string_sep not in indx:
+            dict.__setitem__(self, indx, val)
+        else:
+            tmp = self
+            key_seq = indx.split(group_string_sep)
+            try:
+                for ky in key_seq[:-1]:
+                    tmp = tmp[ky]
+                dict.__setitem__(tmp, key_seq[-1], val)
+            except:
+                dict.__setitem__(self, indx, val)
 
     def to_hdf5(self, buf, chunks=True, compression='gzip'):
         """
@@ -278,7 +309,7 @@ class flat(data):
         if isinstance(indx, indx_subset_valid + (tuple, )):
             return self.subset(indx)
         else:
-            return dict.__getitem__(self, indx)
+            return data.__getitem__(self, indx)
 
     def append(self, other):
         """
