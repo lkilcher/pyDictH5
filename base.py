@@ -144,7 +144,10 @@ class data(dict):
     def __copy__(self, ):
         out = self.__class__()
         for nm, dat in self.iteritems():
-            out[nm] = dat.copy()
+            try:
+                out[nm] = dat.copy()
+            except AttributeError:
+                out[nm] = deepcopy(dat)
         return out
 
     copy = __copy__
@@ -174,7 +177,7 @@ class data(dict):
             try:
                 return self[nm]
             except KeyError:
-                raise AttributeError("'{}' object has not attribute '{}'"
+                raise AttributeError("'{}' object has no attribute '{}'"
                                      .format(str(self.__class__).split("'")[-2].split('.')[-1],
                                              nm))
 
