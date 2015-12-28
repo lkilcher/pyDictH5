@@ -163,13 +163,14 @@ class data(dict):
         return outstr
 
     def __copy__(self, ):
-        out = self.__class__()
-        for nm, dat in self.iteritems():
-            try:
-                out[nm] = dat.copy()
-            except AttributeError:
-                out[nm] = deepcopy(dat)
-        return out
+        return deepcopy(self)
+        # out = self.__class__()
+        # for nm, dat in self.iteritems():
+        #     try:
+        #         out[nm] = dat.copy()
+        #     except AttributeError:
+        #         out[nm] = deepcopy(dat)
+        # return out
 
     copy = __copy__
 
