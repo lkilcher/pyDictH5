@@ -175,6 +175,73 @@ class data(dict):
             outstr += '  {}\n'.format(k)
         return outstr
 
+    def iter_subgroups(self, include_hidden=False):
+        """Generate the keys for all sub-groups in this data object.
+
+        Parameters
+        ----------
+        include_hidden : bool (Default: False)
+              Whether entries starting with '_' should be included in
+              the iteration.
+        """
+        for ky in self:
+            if not include_hidden and ky.startswith('_'):
+                continue
+            if isinstance(self[ky], data):
+                yield ky
+                for ky2 in self[ky].iter_subgroups():
+                    if not include_hidden and ky2.startswith('_'):
+                        continue
+                    if isinstance(self[ky][ky2], data):
+                        yield '{}.{}'.format(ky, ky2)
+
+    def iter_data(self, include_hidden=False):
+        """Generate the keys for all data items in this data object,
+        including walking through sub-data objects.
+
+        Parameters
+        ----------
+        include_hidden : bool (Default: False)
+              Whether entries starting with '_' should be included in
+              the iteration.
+        """
+        for ky in self:
+            if not include_hidden and ky.startswith('_'):
+                continue
+            if isinstance(self[ky], data):
+                for ky2 in self[ky].iter_data(include_hidden=include_hidden):
+                    yield '{}.{}'.format(ky, ky2)
+            else:
+                yield ky
+
+    ### This needs to mimic os.walk.
+    # def walk(self, include_hidden=False):
+    #     """Generate the keys for all data items in this data object,
+    #     including walking through sub-data objects.
+
+    #     Parameters
+    #     ----------
+    #     include_hidden : bool (Default: False)
+    #           Whether entries starting with '_' should be included in
+    #           the iteration.
+    #     """
+    #     triples = [self._walkthis(), ]
+    #     for g in triples[1]:
+    #         triples.append(g._walkthis())
+
+    # def _walkthis(self, thispath, walklist, include_hidden=False):
+    #     path = ''
+    #     data = []
+    #     groups = []
+    #     for ky in self:
+    #         if not include_hidden and ky.startswith('_'):
+    #             continue
+    #         if isinstance(self[ky], data):
+    #             groups.append(ky)
+    #         else:
+    #             data.append(ky)
+    #     return path, groups, data
+
     def __copy__(self, ):
         return deepcopy(self)
 
