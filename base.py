@@ -45,8 +45,6 @@ from copy import deepcopy
 
 indx_subset_valid = (slice, np.ndarray, list, int)
 
-group_string_sep = '.'
-
 
 def load_hdf5(buf, group=None, dat_class=None):
     """
@@ -138,16 +136,31 @@ class data(dict):
     """
 
     def __getitem__(self, indx):
-        if group_string_sep not in indx:
+        if '.' not in indx:
             return dict.__getitem__(self, indx)
         else:
             try:
                 return dict.__getitem__(self, indx)
             except KeyError:
                 tmp = self
-                for ky in indx.split(group_string_sep):
+                for ky in indx.split('.'):
                     tmp = dict.__getitem__(tmp, ky)
                 return tmp
+
+    def __setitem__(self, indx, val):
+        if not isinstance(indx, basestring):
+            raise IndexError(
+                "<class 'PyCoDa.base.data'> objects"
+                " only support string indexes.".format(self.__class__))
+        if '.' in indx:
+            grp, indx = indx.rsplit('.', 1)
+            tmp = self[grp]
+        else:
+            tmp = self
+        if indx in dir(tmp):
+            raise KeyError("The attribute '{}' exists: Creating a key that "
+                           "matches an attribute name is forbidden.".format(indx))
+        dict.__setitem__(tmp, indx, val)
 
     def __contains__(self, key):
         try:
@@ -164,13 +177,6 @@ class data(dict):
 
     def __copy__(self, ):
         return deepcopy(self)
-        # out = self.__class__()
-        # for nm, dat in self.iteritems():
-        #     try:
-        #         out[nm] = dat.copy()
-        #     except AttributeError:
-        #         out[nm] = deepcopy(dat)
-        # return out
 
     copy = __copy__
 
@@ -203,23 +209,6 @@ class data(dict):
                                      .format(str(self.__class__).split("'")[-2].split('.')[-1],
                                              nm))
 
-    def __setitem__(self, indx, val):
-        if not isinstance(indx, basestring):
-            raise IndexError(
-                "<class 'PyCoDa.base.data'> objects"
-                " only support string indexes.".format(self.__class__))
-        if group_string_sep not in indx:
-            dict.__setitem__(self, indx, val)
-        else:
-            tmp = self
-            key_seq = indx.split(group_string_sep)
-            try:
-                for ky in key_seq[:-1]:
-                    tmp = tmp[ky]
-                dict.__setitem__(tmp, key_seq[-1], val)
-            except:
-                dict.__setitem__(self, indx, val)
-
     def to_hdf5(self, buf, chunks=True, compression='gzip'):
         """
         Write the data in this object to an hdf5 file.
@@ -249,6 +238,15 @@ class data(dict):
                                        chunks=chunks, compression=compression)
         if isfile:
             buf.close()
+
+
+class SpecData(data):
+    """
+    A class for storing spectral data.
+
+    The last dimension of all data in this class should be frequency.
+    """
+    pass
 
 
 class flat(data):
