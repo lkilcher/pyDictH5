@@ -2,4 +2,14 @@
 
 Open questions:
 - Should non-string keys be allowed? Pickle the key prior to writing?
-- 
+- Make leading '_' entries hidden!?
+- Should I drop the '_' attribute reference special case? Just make
+  all attribute definitions that are not a key, *attributes*?!? This
+  may not be necessary and may be risky as users use attribute and key
+  reference interchangeably. However, I do need to document that there
+  are TWO special uses of leading underscores:
+  1) Hidden data entries, e.g.:
+     dat['_a_hidden_item'] = 10
+  2) Avoiding the dict
+     dat._not_in_dict = 20
+     

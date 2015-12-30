@@ -109,8 +109,8 @@ Data items can also be added and retrieved by attribute assignment::
   >>> t0 = my_dat.time[0]
 
 Note, however, that these attributes are actually references to the
-dictionary. This means that they will not be *attribute* of the data
-object (FIX THIS?), but are a *member* of it::
+dictionary. This means that they will not be an *attribute* of the
+data object (FIX THIS?), but are a *member* of it::
   
   >>> hasattr(my_dat, 'time')
   False
@@ -153,19 +153,49 @@ Sub-data objects
 It is also often useful to be able to store data objects as
 sub-objects of other data objects. PyCoDa can do this too::
 
-  >>> my_dat['subobj'] = pcd.data()
-  >>> my_dat['subobj']['velocity'] = np.arange(20)
-  >>> my_dat['subobj']['velocity'][2:8] = 4
+  >>> vel_dat['subobj'] = pcd.data()
+  >>> vel_dat['subobj']['velocity'] = np.arange(10)
+  >>> vel_dat['subobj']['velocity'][3:6] = 4
 
 I/O of these 'compound' data objects are read and written to hdf5
 files transparently (as hdf5 *groups*)::
 
-  >>> my_dat.to_hdf5('my_data.h5')
-  >>> my_dat_copy = pcd.load('my_data.h5')
-  >>> 'subobj' in my_dat_copy
+  >>> vel_dat.to_hdf5('vel_data.h5')
+  >>> vel_dat_copy = pcd.load('vel_data.h5')
+  >>> 'subobj' in vel_dat_copy
   True
-  >>> 'velocity' in my_dat_copy['subobj']
+  >>> 'velocity' in vel_dat_copy['subobj']
   True
+
+Sub-data objects can also be accessed and created using attribute
+reference::
+
+  >>> vel_dat.subobj2 = pcd.data()
+  >>> vel_dat.subobj2.velocity2 = vel_dat.subobj.velocity ** 2
+
+It is also possible to access sub-groups and items using dot-group
+key-references like this::
+
+  >>> print vel_dat['subobj2.velocity2']
+  [ 0  1  4 16 16 16 36 49 64 81]
+
+This is useful for iterating through the group using the ``walk``
+function::
+
+  >>> for key in vel_dat.walk():
+  ...    print key, vel_dat[key][2]
+  subobj.velocity 2
+  subobj2.velocity2 4
+
+You can also test whether an item in a sub-group exists using
+dot.group key-references::
+
+  >>> 'subobj.velocity' in vel_dat
+  True
+  >>> 'subobj2.velocity2' in vel_dat
+  True
+  >>> 'subobj2.junk' in vel_dat
+  False
 
 NumPy object arrays
 -------------------
