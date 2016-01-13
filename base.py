@@ -37,67 +37,13 @@ However, only dict entries are stored:
 """
 import numpy as np
 import pandas as pd
-import h5py
-import cPickle
-from . import _version as ver
 import numpy.testing as nptest
 from copy import deepcopy
+from . import io
 
 indx_subset_valid = (slice, np.ndarray, list, int)
 
 
-def load_hdf5(buf, group=None, dat_class=None):
-    """
-    Load a data object from an hdf5 file.
-    """
-    if isinstance(buf, basestring):
-        with h5py.File(buf, 'r') as fl:
-            return load_hdf5(fl, group=group, dat_class=dat_class)
-    if group is not None:
-        buf = buf[group]
-    if dat_class is None:
-        try:
-            out = cPickle.loads(buf.attrs['__pyclass__'])()
-        except AttributeError:
-            print("Warning: Class '{}' not found, defaulting to "
-                  "generic 'pycoda.data'.".format(buf.attrs['__pyclass__']))
-            out = data()
-    else:
-        out = dat_class()
-    if hasattr(buf, 'iteritems'):
-        for nm, dat in buf.iteritems():
-            type_str = dat.attrs.get('_type', None)
-            if dat.__class__ is h5py.Group:
-                out[nm] = load_hdf5(dat)
-            else:
-                cls = dat.attrs.get('__pyclass__', np.ndarray)
-                if cls is not np.ndarray:
-                    cls = cPickle.loads(cls)
-                if type_str == 'pickled object':
-                    out[nm] = cPickle.loads(dat[()])
-                elif type_str == 'non-array scalar':
-                    out[nm] = dat[()]
-                elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
-                    shp = dat.shape
-                    out[nm] = np.empty(shp, dtype='O')
-                    for idf in xrange(dat.size):
-                        ida = np.unravel_index(idf, shp)
-                        if dat[ida] == '':
-                            out[nm][ida] = None
-                        else:
-                            out[nm][ida] = cPickle.loads(dat[ida])
-                    if cls is not np.ndarray:
-                        out[nm] = out[nm].view(cls)
-                else:
-                    out[nm] = np.array(dat)
-                    if cls is not np.ndarray:
-                        out[nm] = out[nm].view(cls)
-    else:
-        out = np.array(buf)
-        cls = buf.attrs.get('__pyclass__', np.ndarray)
-        if cls is not np.ndarray:
-            out = out.view(cPickle.loads(cls))
-    return out
 
 
 def _equiv_dict(d1, d2, print_diff=False):
@@ -295,46 +241,7 @@ class data(dict):
         """
         Write the data in this object to an hdf5 file.
         """
-        if isinstance(buf, basestring):
-            isfile = True
-            buf = h5py.File(buf, 'w')
-            buf.attrs['__package_name__'] = ver.__package__
-            buf.attrs['__version__'] = ver.__version__
-        else:
-            isfile = False
-        buf.attrs['__pyclass__'] = cPickle.dumps(self.__class__)
-        for nm, dat in self.iteritems():
-            if isinstance(dat, data):
-                dat.to_hdf5(buf.create_group(nm),
-                            chunks=chunks, compression=compression)
-            elif isinstance(dat, dict):
-                tmp = data(dat)
-                tmp.to_hdf5(buf.create_group(nm),
-                            chunks=chunks, compression=compression)
-                buf[nm].attrs['__pyclass__'] = cPickle.dumps(dict)
-            else:
-                if isinstance(dat, np.ndarray):
-                    if dat.dtype == 'O':
-                        shp = dat.shape
-                        ds = buf.create_dataset(nm, shp, dtype=h5py.special_dtype(vlen=bytes))
-                        ds.attrs['_type'] = 'NumPy Object Array'
-                        for idf, val in enumerate(dat.flat):
-                            ida = np.unravel_index(idf, shp)
-                            ds[ida] = cPickle.dumps(val)
-                    else:
-                        ds = buf.create_dataset(name=nm, data=dat,
-                                                chunks=chunks, compression=compression)
-                else:
-                    try:
-                        ds = buf.create_dataset(nm, (), data=dat)
-                        ds.attrs['_type'] = 'non-array scalar'
-                    except:
-                        ds = buf.create_dataset(nm, (), data=cPickle.dumps(dat),
-                                                dtype=h5py.special_dtype(vlen=bytes))
-                        ds.attrs['_type'] = 'pickled object'
-                ds.attrs['__pyclass__'] = cPickle.dumps(type(dat))
-        if isfile:
-            buf.close()
+        io.hdf5_write(buf, self, chunks=chunks, compression=compression)
 
 
 class SpecData(data):
@@ -553,21 +460,3 @@ class geodat(flat):
             return inds, other_inds
         return inds
 
-
-class marray(np.ndarray):
-
-    def __new__(cls, input_array, meta={}):
-        # Input array is an already formed ndarray instance
-        # We first cast it to be our class type
-        obj = np.asarray(input_array).view(cls)
-        # add the new attribute to the created instance
-        obj.meta = meta
-        # Finally, we must return the newly created object:
-        return obj
-
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None:
-            return
-        # tmp = getattr(obj, 'meta', None)
-        # self.meta = deepcopy(tmp)
