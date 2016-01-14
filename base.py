@@ -113,7 +113,7 @@ class data(dict):
             elif isinstance(self[nm], np.ndarray):
                 out[nm] = self[nm][indx]
             else:
-                out[nm] = deepcopy(self[nm])
+                out[nm] = self[nm]
         return out
 
     def __getitem__(self, indx):
@@ -139,14 +139,13 @@ class data(dict):
 
         Overload this method to implement alternate appending schemes.
         """
-        out = self.__class__()
         for nm, dat in self.iteritems():
             if isinstance(dat, np.ndarray):
-                out[nm] = np.concatenate((self[nm],
-                                          other[nm]),
-                                         array_axis=array_axis)
-            elif isinstance(dat, PropData):
-                assert self[nm] == other[nm], ""
+                self[nm] = np.concatenate((self[nm],
+                                           other[nm]),
+                                          axis=array_axis)
+            elif not hasattr(dat, 'append') or isinstance(self, (PropData, list)):
+                assert dat == other[nm], ("Properties in {} do not match.".format(nm))
             else:
                 dat.append(other[nm], array_axis=array_axis)
 
@@ -179,7 +178,8 @@ class data(dict):
         return outstr
 
     def iter_subgroups(self, include_hidden=False):
-        """Generate the keys for all sub-groups in this data object.
+        """Generate the keys for all sub-groups in this data object,
+        including walking through sub-groups.
 
         Parameters
         ----------
@@ -217,34 +217,6 @@ class data(dict):
             else:
                 yield ky
 
-    ### This needs to mimic os.walk.
-    # def walk(self, include_hidden=False):
-    #     """Generate the keys for all data items in this data object,
-    #     including walking through sub-data objects.
-
-    #     Parameters
-    #     ----------
-    #     include_hidden : bool (Default: False)
-    #           Whether entries starting with '_' should be included in
-    #           the iteration.
-    #     """
-    #     triples = [self._walkthis(), ]
-    #     for g in triples[1]:
-    #         triples.append(g._walkthis())
-
-    # def _walkthis(self, thispath, walklist, include_hidden=False):
-    #     path = ''
-    #     data = []
-    #     groups = []
-    #     for ky in self:
-    #         if not include_hidden and ky.startswith('_'):
-    #             continue
-    #         if isinstance(self[ky], data):
-    #             groups.append(ky)
-    #         else:
-    #             data.append(ky)
-    #     return path, groups, data
-
     def __copy__(self, ):
         return deepcopy(self)
 
@@ -265,8 +237,8 @@ class data(dict):
         else:
             self.__setitem__(nm, val)
 
-    def __getstate__(self, ):
-        return self
+    # def __getstate__(self, ):
+    #     return self
 
     def __getattribute__(self, nm):
         try:
@@ -297,15 +269,6 @@ class PropData(data):
         assert self == other, ("These data items cannot be joined because "
                                "their properties do not match.")
         return self
-
-
-class SpecData(data):
-    """
-    A class for storing spectral data.
-
-    The last dimension of all data in this class should be frequency.
-    """
-    pass
 
 
 class tabular(data):

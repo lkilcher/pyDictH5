@@ -1,7 +1,7 @@
 import h5py
 from . import _version as ver
-import cPickle
-from base import data
+import cPickle as pkl
+import base as bm
 import numpy as np
 
 
@@ -13,16 +13,16 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
         buf.attrs['__version__'] = ver.__version__
     else:
         isfile = False
-    buf.attrs['__pyclass__'] = cPickle.dumps(dat.__class__)
+    buf.attrs['__pyclass__'] = pkl.dumps(dat.__class__)
     for nm, dat in dat.iteritems():
-        if isinstance(dat, data):
+        if isinstance(dat, bm.data):
             dat.to_hdf5(buf.create_group(nm),
                         chunks=chunks, compression=compression)
         elif isinstance(dat, dict):
-            tmp = data(dat)
+            tmp = bm.data(dat)
             tmp.to_hdf5(buf.create_group(nm),
                         chunks=chunks, compression=compression)
-            buf[nm].attrs['__pyclass__'] = cPickle.dumps(dict)
+            buf[nm].attrs['__pyclass__'] = pkl.dumps(dict)
         else:
             if isinstance(dat, np.ndarray):
                 if dat.dtype == 'O':
@@ -31,7 +31,7 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
                     ds.attrs['_type'] = 'NumPy Object Array'
                     for idf, val in enumerate(dat.flat):
                         ida = np.unravel_index(idf, shp)
-                        ds[ida] = cPickle.dumps(val)
+                        ds[ida] = pkl.dumps(val)
                 else:
                     ds = buf.create_dataset(name=nm, data=dat,
                                             chunks=chunks, compression=compression)
@@ -40,10 +40,10 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
                     ds = buf.create_dataset(nm, (), data=dat)
                     ds.attrs['_type'] = 'non-array scalar'
                 except:
-                    ds = buf.create_dataset(nm, (), data=cPickle.dumps(dat),
+                    ds = buf.create_dataset(nm, (), data=pkl.dumps(dat),
                                             dtype=h5py.special_dtype(vlen=bytes))
                     ds.attrs['_type'] = 'pickled object'
-            ds.attrs['__pyclass__'] = cPickle.dumps(type(dat))
+            ds.attrs['__pyclass__'] = pkl.dumps(type(dat))
     if isfile:
         buf.close()
 
@@ -59,11 +59,11 @@ def load_hdf5(buf, group=None, dat_class=None):
         buf = buf[group]
     if dat_class is None:
         try:
-            out = cPickle.loads(buf.attrs['__pyclass__'])()
+            out = pkl.loads(buf.attrs['__pyclass__'])()
         except AttributeError:
             print("Warning: Class '{}' not found, defaulting to "
                   "generic 'pycoda.data'.".format(buf.attrs['__pyclass__']))
-            out = data()
+            out = bm.data()
     else:
         out = dat_class()
     if hasattr(buf, 'iteritems'):
@@ -74,9 +74,9 @@ def load_hdf5(buf, group=None, dat_class=None):
             else:
                 cls = dat.attrs.get('__pyclass__', np.ndarray)
                 if cls is not np.ndarray:
-                    cls = cPickle.loads(cls)
+                    cls = pkl.loads(cls)
                 if type_str == 'pickled object':
-                    out[nm] = cPickle.loads(dat[()])
+                    out[nm] = pkl.loads(dat[()])
                 elif type_str == 'non-array scalar':
                     out[nm] = dat[()]
                 elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
@@ -87,7 +87,7 @@ def load_hdf5(buf, group=None, dat_class=None):
                         if dat[ida] == '':
                             out[nm][ida] = None
                         else:
-                            out[nm][ida] = cPickle.loads(dat[ida])
+                            out[nm][ida] = pkl.loads(dat[ida])
                     if cls is not np.ndarray:
                         out[nm] = out[nm].view(cls)
                 else:
@@ -98,5 +98,5 @@ def load_hdf5(buf, group=None, dat_class=None):
         out = np.array(buf)
         cls = buf.attrs.get('__pyclass__', np.ndarray)
         if cls is not np.ndarray:
-            out = out.view(cPickle.loads(cls))
+            out = out.view(pkl.loads(cls))
     return out
