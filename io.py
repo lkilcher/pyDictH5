@@ -87,7 +87,11 @@ def load_hdf5(buf, group=None, dat_class=None):
                         if dat[ida] == '':
                             out[nm][ida] = None
                         else:
-                            out[nm][ida] = pkl.loads(dat[ida])
+                            tmp = dat[ida]
+                            try:
+                                out[nm][ida] = pkl.loads(tmp)
+                            except:
+                                out[nm][ida] = tmp
                     if cls is not np.ndarray:
                         out[nm] = out[nm].view(cls)
                 else:

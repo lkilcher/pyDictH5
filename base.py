@@ -117,7 +117,7 @@ class data(dict):
         return out
 
     def __getitem__(self, indx):
-        if '.' not in indx:
+        if not isinstance(indx, str) or '.' not in indx:
             return dict.__getitem__(self, indx)
         else:
             try:
@@ -147,7 +147,10 @@ class data(dict):
             elif not hasattr(dat, 'append') or isinstance(self, (PropData, list)):
                 assert dat == other[nm], ("Properties in {} do not match.".format(nm))
             else:
-                dat.append(other[nm], array_axis=array_axis)
+                if 'array_axis' in dat.append.__code__.co_varnames:
+                    dat.append(other[nm], array_axis=array_axis)
+                else:
+                    dat.append(other[nm])
 
     def __setitem__(self, indx, val):
         if not isinstance(indx, basestring):
