@@ -48,6 +48,23 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
         buf.close()
 
 
+def cls_pklstr_gen(cls_pklstr):
+    """A generator function for searching for a class definition
+    within packages/subpackages.
+    """
+    # First try the original string:
+    yield cls_pklstr
+    ####
+    # Now start parsing the string...
+    # module, and the rest of the class string.
+    mod, cls = cls_pklstr.split('\n', 1)
+    # Drop the 'c'
+    mod = mod[1:]
+    while '.' in mod:
+        mod = mod.split('.', 1)[-1]
+        yield 'c' + mod + '\n' + cls
+
+
 def load_hdf5(buf, group=None, dat_class=None):
     """
     Load a data object from an hdf5 file.
@@ -58,12 +75,22 @@ def load_hdf5(buf, group=None, dat_class=None):
     if group is not None:
         buf = buf[group]
     if dat_class is None:
-        try:
-            out = pkl.loads(buf.attrs['__pyclass__'])()
-        except AttributeError:
+        outclass = None
+        # The try loop focuses on finding the class...
+        for cls_pklstr in cls_pklstr_gen(buf.attrs['__pyclass__']):
+            try:
+                outclass = pkl.loads(cls_pklstr)
+            except ImportError:
+                pass
+            else:
+                # No error, so stop the loop.
+                break
+        if outclass is None:
             print("Warning: Class '{}' not found, defaulting to "
                   "generic 'pycoda.data'.".format(buf.attrs['__pyclass__']))
-            out = bm.data()
+            outclass = bm.data
+        # Now call it
+        out = outclass()
     else:
         out = dat_class()
     if hasattr(buf, 'iteritems'):
