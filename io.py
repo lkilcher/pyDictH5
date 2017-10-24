@@ -3,10 +3,11 @@ from . import _version as ver
 import cPickle as pkl
 import base as bm
 import numpy as np
+import six
 
 
 def hdf5_write(buf, dat, chunks=True, compression='gzip'):
-    if isinstance(buf, basestring):
+    if isinstance(buf, six.string_types):
         isfile = True
         buf = h5py.File(buf, 'w')
         buf.attrs['__package_name__'] = ver.__package__
@@ -27,21 +28,30 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
             if isinstance(dat, np.ndarray):
                 if dat.dtype == 'O':
                     shp = dat.shape
-                    ds = buf.create_dataset(nm, shp, dtype=h5py.special_dtype(vlen=bytes))
+                    ds = buf.create_dataset(
+                        nm, shp,
+                        dtype=h5py.special_dtype(vlen=bytes))
                     ds.attrs['_type'] = 'NumPy Object Array'
                     for idf, val in enumerate(dat.flat):
                         ida = np.unravel_index(idf, shp)
                         ds[ida] = pkl.dumps(val)
+                elif str(dat.dtype).startswith('datetime64'):
+                    ds = buf.create_dataset(
+                        name=nm, data=dat.astype('S'),
+                        chunks=chunks, compression=compression)
+                    ds.attrs['_type'] = str(dat.dtype)
                 else:
-                    ds = buf.create_dataset(name=nm, data=dat,
-                                            chunks=chunks, compression=compression)
+                    ds = buf.create_dataset(
+                        name=nm, data=dat,
+                        chunks=chunks, compression=compression)
             else:
                 try:
                     ds = buf.create_dataset(nm, (), data=dat)
                     ds.attrs['_type'] = 'non-array scalar'
                 except:
-                    ds = buf.create_dataset(nm, (), data=pkl.dumps(dat),
-                                            dtype=h5py.special_dtype(vlen=bytes))
+                    ds = buf.create_dataset(
+                        nm, (), data=pkl.dumps(dat),
+                        dtype=h5py.special_dtype(vlen=bytes))
                     ds.attrs['_type'] = 'pickled object'
             ds.attrs['__pyclass__'] = pkl.dumps(type(dat))
     if isfile:
@@ -69,7 +79,7 @@ def load_hdf5(buf, group=None, dat_class=None):
     """
     Load a data object from an hdf5 file.
     """
-    if isinstance(buf, basestring):
+    if isinstance(buf, six.string_types):
         with h5py.File(buf, 'r') as fl:
             return load_hdf5(fl, group=group, dat_class=dat_class)
     if group is not None:
@@ -123,6 +133,9 @@ def load_hdf5(buf, group=None, dat_class=None):
                         out[nm] = out[nm].view(cls)
                 else:
                     out[nm] = np.array(dat)
+                    if isinstance(type_str, six.string_types) and \
+                       type_str.startswith('datetime64'):
+                        out[nm] = out[nm].astype(type_str)
                     if cls is not np.ndarray:
                         out[nm] = out[nm].view(cls)
     else:
