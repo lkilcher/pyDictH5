@@ -4,7 +4,7 @@ Introduction
 .. _NumPy: http://www.numpy.org/
 .. _Pandas: http://pandas.pydata.org/
 .. _h5py: http://www.h5py.org/
-.. _PyCoDa: http://githumb.com/lkilcher/pyCoDa/
+.. _PyCoDa: http://github.com/lkilcher/pyCoDa/
 .. _pickle: http://docs.python.org/library/pickle.html
 
 The Python Compound Data (PyCoDa_) library is a lightweight framework

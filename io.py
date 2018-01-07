@@ -8,12 +8,12 @@ import six
 
 def hdf5_write(buf, dat, chunks=True, compression='gzip'):
     if isinstance(buf, six.string_types):
-        isfile = True
-        buf = h5py.File(buf, 'w')
-        buf.attrs['__package_name__'] = ver.__package__
-        buf.attrs['__version__'] = ver.__version__
-    else:
-        isfile = False
+        # If it is a filename open the file using `with`.
+        with h5py.File(buf, 'w') as h5buf:
+            h5buf.attrs['__package_name__'] = ver.__package__
+            h5buf.attrs['__version__'] = ver.__version__
+            hdf5_write(h5buf, dat, chunks=chunks, compression=compression)
+        return
     buf.attrs['__pyclass__'] = pkl.dumps(dat.__class__)
     for nm, dat in dat.iteritems():
         if isinstance(dat, bm.data):
@@ -62,8 +62,6 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
                 else:
                     ds.attrs['_type'] = 'non-array scalar'
             ds.attrs['__pyclass__'] = pkl.dumps(type(dat))
-    if isfile:
-        buf.close()
 
 
 def cls_pklstr_gen(cls_pklstr):
@@ -152,3 +150,19 @@ def load_hdf5(buf, group=None, dat_class=None):
         if cls is not np.ndarray:
             out = out.view(pkl.loads(cls))
     return out
+
+
+# These two functions don't use a 'with' statement, so the debugger
+# works more cleanly. You do have to close the file explicitly though.
+def _debug_write(fname, dat):
+    h5buf = h5py.File(fname, 'w')
+    h5buf.attrs['__package_name__'] = ver.__package__
+    h5buf.attrs['__version__'] = ver.__version__
+    hdf5_write(h5buf, dat)
+    return h5buf
+
+
+def _debug_load(fname):
+    h5buf = h5py.File(fname, 'r')
+    dat = load_hdf5(h5buf)
+    return dat
