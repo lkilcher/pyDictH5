@@ -51,12 +51,16 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
             else:
                 try:
                     ds = buf.create_dataset(nm, (), data=dat)
-                    ds.attrs['_type'] = 'non-array scalar'
-                except:
+                except (TypeError, ValueError):
+                    # Pickle the object.
+                    val = pkl.dumps(dat)
                     ds = buf.create_dataset(
-                        nm, (), data=pkl.dumps(dat),
-                        dtype=h5py.special_dtype(vlen=bytes))
+                        nm, (), dtype='S{}'.format(len(val))
+                    )
+                    ds[()] = val
                     ds.attrs['_type'] = 'pickled object'
+                else:
+                    ds.attrs['_type'] = 'non-array scalar'
             ds.attrs['__pyclass__'] = pkl.dumps(type(dat))
     if isfile:
         buf.close()
@@ -117,7 +121,7 @@ def load_hdf5(buf, group=None, dat_class=None):
                 if cls is not np.ndarray:
                     cls = pkl.loads(cls)
                 if type_str == 'pickled object':
-                    out[nm] = pkl.loads(dat[()])
+                    out[nm] = pkl.loads(str(dat[()]))
                 elif type_str == 'non-array scalar':
                     out[nm] = dat[()]
                 elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
