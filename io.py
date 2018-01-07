@@ -40,6 +40,10 @@ def hdf5_write(buf, dat, chunks=True, compression='gzip'):
                         name=nm, data=dat.astype('S'),
                         chunks=chunks, compression=compression)
                     ds.attrs['_type'] = str(dat.dtype)
+                elif dat.dtype.kind == 'U':
+                    ds = buf.create_dataset(
+                        name=nm, data=dat.astype('S'),
+                        chunks=chunks, compression=compression)
                 else:
                     try:
                         ds = buf.create_dataset(
