@@ -49,3 +49,5 @@ README.html
 *~
 
 *.pyc
+
+*.egg-info/
