@@ -61,6 +61,8 @@ def _equiv_dict(d1, d2, print_diff=False):
 
     """
     if type(d1) is not type(d2):
+        if print_diff:
+            print("The types do not match.")
         return False
     if set(d2.keys()) == set(d1.keys()):
         for ky in d1:
