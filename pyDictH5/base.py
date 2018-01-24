@@ -36,7 +36,6 @@ However, only dict entries are stored:
     >>> d_copy['time2']
 """
 import numpy as np
-import pandas as pd
 import numpy.testing as nptest
 from copy import deepcopy
 from . import io
@@ -274,38 +273,6 @@ class PropData(data):
         assert self == other, ("These data items cannot be joined because "
                                "their properties do not match.")
         return self
-
-
-class tabular(data):
-    """
-    A class for holding tabular (e.g. 'spreadsheet') type data.
-
-    This data-type is assumed to be planar (2-D, rows and columns)
-    only.
-    """
-    def to_dataframe(self,):
-        siteout = None
-        for nm, val in self.iteritems():
-            if val.ndim == 1:
-                if siteout is None:
-                    siteout = pd.DataFrame(val, columns=[nm])
-                else:
-                    siteout.loc[:, nm] = pd.Series(val)
-            else:
-                siteout[nm] = pd.DataFrame(val)
-        return siteout
-
-    def to_excel(self, fname):
-        out = {}
-        buf = pd.io.excel.ExcelWriter(fname)
-        siteout = self.to_dataframe()
-        siteout.to_excel(buf, sheet_name='Site')
-        for nm in out:
-            if np.iscomplex(out[nm]).any():
-                out[nm].astype('S').to_excel(buf, sheet_name=nm)
-            else:
-                out[nm].to_excel(buf, sheet_name=nm)
-        buf.close()
 
 
 class geodat(data):

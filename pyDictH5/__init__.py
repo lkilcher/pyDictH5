@@ -1,4 +1,4 @@
-from .base import data, geodat, tabular
+from .base import data, geodat
 from ._version import __version__
 from .io import load_hdf5
 
