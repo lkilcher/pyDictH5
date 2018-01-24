@@ -4,31 +4,31 @@ Introduction
 .. _NumPy: http://www.numpy.org/
 .. _Pandas: http://pandas.pydata.org/
 .. _h5py: http://www.h5py.org/
-.. _PyCoDa: http://github.com/lkilcher/pyCoDa/
+.. _pyDictH5: http://github.com/lkilcher/pyDictH5/
 .. _pickle: http://docs.python.org/library/pickle.html
 
-The Python Compound Data (PyCoDa_) library is a lightweight framework
+pyDictH5_ is a lightweight framework
 and syntax for working with compound data composed primarily of NumPy_
-arrays. PyCoDa utilizes h5py_ to provide efficient file I/O in a
+arrays. pyDictH5 utilizes h5py_ to provide efficient file I/O in a
 transparent and standardized format.
-PyCoDa uses a standardized syntax for working with arrays of data that
+pyDictH5 uses a standardized syntax for working with arrays of data that
 are related in simple to complex ways. 
 
-The primary PyCoDa data structure, ``pycoda.data``, has the following
+The primary pyDictH5 data structure, ``pycoda.data``, has the following
 key benefits:
 
 #) Under the hood pycoda.data objects are essentially Python dict's,
    with most of the functionality preserved.
 
 #) The keys in pycoda.data objects can be accessed as attributes. This
-   makes the PyCoDa source lightweight and powerful. The lightweight
+   makes the pyDictH5 source lightweight and powerful. The lightweight
    source of pycoda.data objects makes sub-classing them simple, so
    that you can implement your own methods for the needs of your data.
 
 #) A standardized syntax and file format that is similar to Matlab's
    'struct'.
 
-PyCoDa is meant for NumPy users who:
+pyDictH5 is meant for NumPy users who:
 
 A) Want standardized data (object) file I/O.
 
@@ -43,41 +43,41 @@ C) Want a set of unique, simple NumPy arrays for working with data
 Data Model
 ==========
 
-PyCoDa is designed for use by amateur to advanced developers and data
+pyDictH5 is designed for use by amateur to advanced developers and data
 analysts who want a simple interface for handling N-dimensional data
 that reduces the burden of reading/writing data from/to hdf5 files. It
 is designed to be lightweight and extensible, as opposed to
 multi-purpose and high-level.
 
-PyCoDa provides a set of simple *base classes* that each provide
+pyDictH5 provides a set of simple *base classes* that each provide
 unique functionality that is believed to be useful by many
 users. These base classes are meant to be used as parent classes for
 (inherited from) -- or used to compose -- higher-level data classes.
 
-How is PyCoDa different from Pandas?
+How is pyDictH5 different from Pandas?
 ------------------------------------
 
 Pandas_ is great! It provides a suite of flexible and powerful tools
 for handling and analyzing 2-dimensional data (i.e. tabular,
 spreadsheet-like data). However, if your data is N-dimensional and/or
-contains data of mixed size and dimensions, PyCoDa may be better
-suited for your needs. In contrast to Pandas_, PyCoDa does not provide
+contains data of mixed size and dimensions, pyDictH5 may be better
+suited for your needs. In contrast to Pandas_, pyDictH5 does not provide
 high-level interfaces to plotting or other statistical analysis
 tools. Instead, it provides a consistent data and I/O structure, and
 assumes users will build the higher functionality where it is needed.
 A primary advantage of this, compared to Pandas, is that data is not
 coerced toward 2 dimensiones (DataFrames).
 
-Why use PyCoDa vs. Pickle?
+Why use pyDictH5 vs. Pickle?
 --------------------------
 
-ADD TEXT: PyCoDa (hdf5 I/O via h5py) is faster for large arrays...
+ADD TEXT: pyDictH5 (hdf5 I/O via h5py) is faster for large arrays...
 
 
 Usage
 =====
 
-PyCoDa proposes that constructing data and performing I/O should be
+pyDictH5 proposes that constructing data and performing I/O should be
 done behind the scenes, so that users can *focus on their data*,
 rather than spending time implementing I/O::
 
@@ -151,7 +151,7 @@ Sub-data objects
 ----------------
 
 It is also often useful to be able to store data objects as
-sub-objects of other data objects. PyCoDa can do this too::
+sub-objects of other data objects. pyDictH5 can do this too::
 
   >>> vel_dat['subobj'] = pcd.data()
   >>> vel_dat['subobj']['velocity'] = np.arange(10)
@@ -200,7 +200,7 @@ dot.group key-references::
 NumPy object arrays
 -------------------
 
-PyCoDa supports NumPy object-array writing (currently this is not
+pyDictH5 supports NumPy object-array writing (currently this is not
 natively supported by h5py_\ ). This is implemented by pickle_\ ing
 each object of the array, then writing the pickle-strings into hdf5
 *varlen* arrays::
@@ -251,7 +251,7 @@ lengths in a single data object, you may get unexpected results.
 Sub-classing
 ------------
 
-A key feature of PyCoDa is the ability to subclass the ``pycoda.data``
+A key feature of pyDictH5 is the ability to subclass the ``pycoda.data``
 class. For example, if we create a module ``my_data_module.py`` that
 contains::
 
@@ -283,7 +283,7 @@ A major advantage of sub-classing ``pycoda.data`` is that, so long
 as the subclass is available consistently between write and read, the
 dtype is preserved. This is why it is useful to define sub-classes in
 modules (or packages) of their own. Then, so long as those modules or
-packages are on the Python path, PyCoDa will import and utilize those
+packages are on the Python path, pyDictH5 will import and utilize those
 classes transparently.  For example, if the ``my_data`` class is
 defined in a ``my_data_module.py``, the class will be preserved::
 
@@ -337,11 +337,11 @@ String keys only
 ................
 
 In standard Python dictionaries, dictionary keys can be any immutable
-object. PyCoDa -- in order to allow for attribute reference, and
+object. pyDictH5 -- in order to allow for attribute reference, and
 transparent I/O to hdf5, restricts the dictionary keys to be strings::
 
   >>> my_dat[0] = np.arange(10)
-  IndexError: <class 'PyCoDa.base.data'> objects only support string indexes.
+  IndexError: <class 'pyDictH5.base.data'> objects only support string indexes.
   >>> my_dat['0'] = np.arange(10)
   >>> '0' in my_dat
   True
