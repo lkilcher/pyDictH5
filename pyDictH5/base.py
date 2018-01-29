@@ -41,6 +41,10 @@ from copy import deepcopy
 from . import io
 
 
+debug_level = 0
+arrayEQ_tols = dict(rtol=1e-3, atol=1e-6)
+
+
 class indexer(object):
 
     def __init__(self, parent):
@@ -50,42 +54,57 @@ class indexer(object):
         return self.parent._subset(indx)
 
 
-def _equiv_dict(d1, d2, print_diff=False):
-    """Test whether two dictionary-like are equivalent.
-
-    This includes support for arrays so that you don't get a:
-
-      ValueError: The truth value of an array with more than one
-      element is ambiguous. Use a.any() or a.all()
-
-    """
-    if type(d1) is not type(d2):
-        if print_diff:
-            print("The types do not match.")
-        return False
+def _equiv_dict(d1, d2):
     if set(d2.keys()) == set(d1.keys()):
+        retval = True
         for ky in d1:
             try:
                 if isinstance(d1[ky], np.ndarray):
-                    assert type(d1[ky]) is type(d2[ky])
-                    nptest.assert_equal(d1[ky], d2[ky])
+                    assert type(d1[ky]) is type(d2[ky])  # nopep8
+                    assert d1[ky].shape == d2[ky].shape
+                    if (not np.issubdtype(d1[ky].dtype, np.inexact)) or \
+                       arrayEQ_tols == dict(rtol=0, atol=0):
+                        nptest.assert_equal(d1[ky], d2[ky])
+                    else:
+                        assert np.allclose(d1[ky], d2[ky],
+                                           equal_nan=True, **arrayEQ_tols)
                 elif isinstance(d1[ky], dict):
-                    assert _equiv_dict(d1[ky], d2[ky],
-                                       print_diff=print_diff)
+                    assert _equiv_dict(d1[ky], d2[ky])
                 else:
                     assert d1[ky] == d2[ky]
             except AssertionError:
-                if print_diff:
-                    print('The values in {} do not match between the data objects.'
-                          .format(ky, d1, d2))
-                return False
-        return True
-    if print_diff:
+                retval = False
+                if debug_level > 0:
+                    if isinstance(d1[ky], np.ndarray):
+                        if d1[ky].shape != d2[ky].shape:
+                            print('The shapes of the arrays do not match. '
+                                  '({}, vs. {}).'.format(d1[ky].shape,
+                                                         d2[ky].shape))
+                        else:
+                            frac = np.float((~np.isclose(
+                                d1[ky], d2[ky], equal_nan=True,
+                                **arrayEQ_tols)).sum()) / d1[ky].size
+                            print('{:0.2f}% of the values in {} do not match.'
+                                  .format(frac * 100, ky))
+                        try:
+                            assert np.allclose(d1[ky], d2[ky],
+                                               rtol=1e-3, equal_nan=True)
+                            print(' ... but they are close.')
+                        except:
+                            pass
+                    else:
+                        print('The values in {} do not match.'
+                              .format(ky))
+                else:
+                    return False
+        return retval
+    if debug_level > 0:
         dif1 = set(d1.keys()) - set(d2.keys())
         dif2 = set(d2.keys()) - set(d1.keys())
         print("The list of items are not the same.\n"
               "Entries in 1 that are not in 2: {}\n"
-              "Entries in 2 that are not in 1: {}".format(list(dif1), list(dif2)))
+              "Entries in 2 that are not in 1: {}".format(list(dif1),
+                                                          list(dif2)))
     return False
 
 
@@ -113,6 +132,10 @@ class data(dict):
                 out[nm] = self[nm]._subset(indx)
             elif isinstance(self[nm], np.ndarray):
                 out[nm] = self[nm][indx]
+                if raise_on_empty_array and \
+                   (np.array(out[nm].shape) == 0).any():
+                    raise IndexError('The indexing object yields '
+                                     'empty arrays.')
             else:
                 out[nm] = self[nm]
         return out
@@ -226,11 +249,11 @@ class data(dict):
 
     copy = __copy__
 
-    def __eq__(self, other, print_diff=False):
+    def __eq__(self, other):
         """
         Test for equivalence between data objects.
         """
-        return _equiv_dict(self, other, print_diff=print_diff)
+        return _equiv_dict(self, other)
 
     def __setattr__(self, nm, val):
         if nm.startswith('_') and (nm not in self):
