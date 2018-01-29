@@ -125,7 +125,7 @@ class data(dict):
     def subset(self, ):
         return indexer(self)
 
-    def _subset(self, indx):
+    def _subset(self, indx, raise_on_empty_array=False):
         out = self.__class__()
         for nm in self:
             if isinstance(self[nm], data):
