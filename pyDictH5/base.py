@@ -38,7 +38,13 @@ However, only dict entries are stored:
 import numpy as np
 import numpy.testing as nptest
 from copy import deepcopy
-from . import io
+try:
+    # PY 3
+    from . import io
+except ImportError:
+    # PY 2
+    import io
+import six
 
 
 debug_level = 0
@@ -125,10 +131,12 @@ class data(dict):
     def subset(self, ):
         return indexer(self)
 
-    def _subset(self, indx, raise_on_empty_array=False):
+    def _subset(self, indx, raise_on_empty_array=False, copy=[]):
         out = self.__class__()
         for nm in self:
-            if isinstance(self[nm], data):
+            if nm in copy:
+                out[nm] = deepcopy(self[nm])
+            elif isinstance(self[nm], data):
                 out[nm] = self[nm]._subset(indx)
             elif isinstance(self[nm], np.ndarray):
                 out[nm] = self[nm][indx]
@@ -177,7 +185,7 @@ class data(dict):
                     dat.append(other[nm])
 
     def __setitem__(self, indx, val):
-        if not isinstance(indx, basestring):
+        if not isinstance(indx, six.string_types):
             raise IndexError(
                 "<class 'PyCoDa.base.data'> objects"
                 " only support string indexes.".format(self.__class__))

@@ -51,3 +51,5 @@ README.html
 *.pyc
 
 *.egg-info/
+
+build/
