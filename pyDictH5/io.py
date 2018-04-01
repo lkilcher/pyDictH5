@@ -1,9 +1,6 @@
 import h5py
 from . import _version as ver
-try:
-    import cPickle as pkl
-except ImportError:
-    import pickle as pkl
+from . import pkl
 try:
     # PY 3
     from . import base as bm
@@ -22,7 +19,7 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
             h5buf.attrs['__version__'] = ver.__version__
             hdf5_write(h5buf, indat, chunks=chunks, compression=compression)
         return
-    buf.attrs['__pyclass__'] = pkl.dumps(indat.__class__, protocol=0)
+    buf.attrs['__pyclass__'] = pkl.dumps(indat.__class__)
     for nm in indat.keys():
         dat = indat[nm]
         if isinstance(dat, bm.data):
@@ -32,7 +29,7 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
             tmp = bm.data(dat)
             tmp.to_hdf5(buf.create_group(nm),
                         chunks=chunks, compression=compression)
-            buf[nm].attrs['__pyclass__'] = pkl.dumps(dict, protocol=0)
+            buf[nm].attrs['__pyclass__'] = pkl.dumps(dict)
         else:
             if isinstance(dat, np.ndarray):
                 if dat.dtype == 'O':
@@ -43,7 +40,7 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
                     ds.attrs['_type'] = 'NumPy Object Array'
                     for idf, val in enumerate(dat.flat):
                         ida = np.unravel_index(idf, shp)
-                        ds[ida] = pkl.dumps(val, protocol=0)
+                        ds[ida] = pkl.dumps(val)
                 elif str(dat.dtype).startswith('datetime64'):
                     ds = buf.create_dataset(
                         name=nm, data=dat.astype('S'),
@@ -66,7 +63,7 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
                     ds = buf.create_dataset(nm, (), data=dat)
                 except (TypeError, ValueError):
                     # Pickle the object.
-                    val = pkl.dumps(dat, protocol=0)
+                    val = pkl.dumps(dat)
                     ds = buf.create_dataset(
                         nm, (), dtype='S{}'.format(len(val))
                     )
@@ -74,7 +71,7 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
                     ds.attrs['_type'] = 'pickled object'
                 else:
                     ds.attrs['_type'] = 'non-array scalar'
-            ds.attrs['__pyclass__'] = pkl.dumps(type(dat), protocol=0)
+            ds.attrs['__pyclass__'] = pkl.dumps(type(dat))
 
 
 def cls_pklstr_gen(cls_pklstr):
@@ -138,6 +135,10 @@ def load_hdf5(buf, group=None, dat_class=None):
         for nm in buf.keys():
             dat = buf[nm]
             type_str = dat.attrs.get('_type', None)
+            try:
+                type_str = type_str.decode('utf-8')
+            except AttributeError:
+                pass
             if dat.__class__ is h5py.Group:
                 if group != '':
                     out[nm] = load_hdf5(dat)
@@ -146,7 +147,7 @@ def load_hdf5(buf, group=None, dat_class=None):
                 if cls is not np.ndarray:
                     cls = pkl.loads(cls)
                 if type_str == 'pickled object':
-                    out[nm] = pkl.loads(str(dat[()]))
+                    out[nm] = pkl.loads(dat[()])
                 elif type_str == 'non-array scalar':
                     out[nm] = dat[()]
                 elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
