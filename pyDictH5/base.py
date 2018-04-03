@@ -188,7 +188,7 @@ class data(dict):
         if not isinstance(indx, six.string_types):
             raise IndexError(
                 "<class 'PyCoDa.base.data'> objects"
-                " only support string indexes.".format(self.__class__))
+                " only support string indexing.")
         if '.' in indx:
             grp, indx = indx.rsplit('.', 1)
             tmp = self[grp]

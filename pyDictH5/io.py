@@ -136,7 +136,7 @@ def load_hdf5(buf, group=None, dat_class=None):
             dat = buf[nm]
             type_str = dat.attrs.get('_type', None)
             try:
-                type_str = type_str.decode('utf-8')
+                type_str = pkl.decode(type_str)
             except AttributeError:
                 pass
             if dat.__class__ is h5py.Group:
@@ -149,11 +149,11 @@ def load_hdf5(buf, group=None, dat_class=None):
                 if type_str == 'pickled object':
                     out[nm] = pkl.loads(dat[()])
                 elif type_str == 'non-array scalar':
-                    out[nm] = dat[()]
+                    out[nm] = pkl.decode(dat[()])
                 elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
                     shp = dat.shape
                     out[nm] = np.empty(shp, dtype='O')
-                    for idf in xrange(dat.size):
+                    for idf in range(dat.size):
                         ida = np.unravel_index(idf, shp)
                         if dat[ida] == '':
                             out[nm][ida] = None
@@ -172,6 +172,8 @@ def load_hdf5(buf, group=None, dat_class=None):
                         out[nm] = out[nm].astype(type_str)
                     if cls is not np.ndarray:
                         out[nm] = out[nm].view(cls)
+                    if out[nm].dtype.name.startswith('bytes'):
+                        out[nm] = out[nm].astype('<U')
     else:
         out = np.array(buf)
         cls = buf.attrs.get('__pyclass__', np.ndarray)

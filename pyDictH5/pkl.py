@@ -9,6 +9,18 @@ else:
     raise Exception("pyDictH5 only supports python 2 or 3.")
 
 
+def decode(val):
+    if isinstance(val, list):
+        for idx in range(len(val)):
+            val[idx] = decode(val[idx])
+        return val
+    try:
+        return val.decode('utf-8')
+    except (AttributeError, UnicodeDecodeError):
+        pass
+    return val
+
+
 def dumps(data):
     return pkl.dumps(data, protocol=0)
 
@@ -17,4 +29,9 @@ def loads(data):
     if py_ver == 2:
         return pkl.loads(data)
     else:
-        return pkl.loads(data, encoding='bytes')
+        try:
+            out = pkl.loads(data)
+        except UnicodeDecodeError:
+            out = pkl.loads(data, encoding='bytes')
+            out = decode(out)
+        return out
