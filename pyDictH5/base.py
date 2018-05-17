@@ -51,6 +51,9 @@ debug_level = 0
 arrayEQ_tols = dict(rtol=1e-3, atol=1e-6)
 
 
+_RaiseKeyError = object()
+
+
 class indexer(object):
 
     def __init__(self, parent):
@@ -183,6 +186,23 @@ class data(dict):
                     dat.append(other[nm], array_axis=array_axis)
                 else:
                     dat.append(other[nm])
+
+    def pop(self, indx, d=_RaiseKeyError):
+        if not isinstance(indx, six.string_types):
+            raise IndexError(
+                "<class 'PyCoDa.base.data'> objects"
+                " only support string indexing.")
+        if indx not in self:
+            if d is _RaiseKeyError:
+                dict.pop(self, indx)
+            else:
+                return d
+        if '.' in indx:
+            grp, indx = indx.rsplit('.', 1)
+            tmp = self[grp]
+        else:
+            tmp = self
+        return dict.pop(tmp, indx)
 
     def __setitem__(self, indx, val):
         if not isinstance(indx, six.string_types):
