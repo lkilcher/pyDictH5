@@ -140,7 +140,10 @@ class data(dict):
             if nm in copy:
                 out[nm] = deepcopy(self[nm])
             elif isinstance(self[nm], data):
-                out[nm] = self[nm]._subset(indx)
+                out[nm] = self[nm]._subset(
+                    indx,
+                    raise_on_empty_array=raise_on_empty_array,
+                    copy=copy)
             elif isinstance(self[nm], np.ndarray):
                 out[nm] = self[nm][indx]
                 if raise_on_empty_array and \
@@ -174,7 +177,7 @@ class data(dict):
 
         Overload this method to implement alternate appending schemes.
         """
-        for nm, dat in self.iteritems():
+        for nm, dat in self.items():
             if isinstance(dat, np.ndarray):
                 self[nm] = np.concatenate((self[nm],
                                            other[nm]),
@@ -341,7 +344,7 @@ class geodat(data):
         if lat is not None:
             inds &= (lat[0] < self['lat']) & (self['lat'] < lat[1])
         other_inds = {nm: dat.llrange(lon=lon, lat=lat)
-                      for nm, dat in self.iteritems()
+                      for nm, dat in self.items()
                       if isinstance(dat, geodat)}
         if len(other_inds) > 0:
             return inds, other_inds
