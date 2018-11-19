@@ -53,3 +53,7 @@ README.html
 *.egg-info/
 
 build/
+
+dist/
+
+MANIFEST

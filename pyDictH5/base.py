@@ -132,6 +132,17 @@ class data(dict):
 
     @property
     def subset(self, ):
+        """Subset is an `indexer` for creating subsets of the data
+        object using Python slice syntax.
+
+        For example, you can do::
+
+            dat2 = dat.subset[10:500]
+
+        Which returns a new data object that contains the 10th through
+        500th entry for each variable in the data object. This also
+        operates recursively through sub-objects.
+        """
         return indexer(self)
 
     def _subset(self, indx, raise_on_empty_array=False, copy=[]):
@@ -276,6 +287,8 @@ class data(dict):
                 yield ky
 
     def __copy__(self, ):
+        """Create a copy of the data object.
+        """
         return deepcopy(self)
 
     copy = __copy__
@@ -284,7 +297,7 @@ class data(dict):
         """
         Test for equivalence between data objects.
         """
-        return _equiv_dict(self, other)
+        return self.__class__ is other.__class__ and _equiv_dict(self, other)
 
     def __setattr__(self, nm, val):
         if nm.startswith('_') and (nm not in self):

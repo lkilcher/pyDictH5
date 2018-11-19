@@ -14,15 +14,15 @@ transparent and standardized format.
 pyDictH5 uses a standardized syntax for working with arrays of data that
 are related in simple to complex ways. 
 
-The primary pyDictH5 data structure, ``pycoda.data``, has the following
+The primary pyDictH5 data structure, ``pyDictH5.data``, has the following
 key benefits:
 
-#) Under the hood pycoda.data objects are essentially Python dict's,
-   with most of the functionality preserved.
+#) Under the hood pyDictH5.data objects are essentially Python dict's,
+   with most of the ``dict`` functionality preserved.
 
-#) The keys in pycoda.data objects can be accessed as attributes. This
+#) The keys in ``pyDictH5.data`` objects can be accessed as attributes. This
    makes the pyDictH5 source lightweight and powerful. The lightweight
-   source of pycoda.data objects makes sub-classing them simple, so
+   source of pyDictH5.data objects makes sub-classing them simple, so
    that you can implement your own methods for the needs of your data.
 
 #) A standardized syntax and file format that is similar to Matlab's
@@ -77,11 +77,11 @@ ADD TEXT: pyDictH5 (hdf5 I/O via h5py) is faster for large arrays...
 Usage
 =====
 
-pyDictH5 proposes that constructing data and performing I/O should be
+pyDictH5 was built so that constructing data and performing I/O is
 done behind the scenes, so that users can *focus on their data*,
 rather than spending time implementing I/O::
 
-  >>> import pycoda as pcd
+  >>> import pyDictH5 as pcd
   >>> import numpy as np
   
 Initialize a data object ``my_dat``::
@@ -243,7 +243,7 @@ These two data object can be concatenated by simply doing::
   >>> print(timedat.time)
   [0, 1, 2, ... 28, 29]
 
-The ``pycoda.data`` object does simple concatenating along the first
+The ``pyDictH5.data`` object does simple concatenating along the first
 (``0``) axis of all arrays. It does no checking to make sure the data
 is the same size in this dimension, so if you have data of different
 lengths in a single data object, you may get unexpected results.
@@ -251,11 +251,11 @@ lengths in a single data object, you may get unexpected results.
 Sub-classing
 ------------
 
-A key feature of pyDictH5 is the ability to subclass the ``pycoda.data``
+A key feature of pyDictH5 is the ability to subclass the ``pyDictH5.data``
 class. For example, if we create a module ``my_data_module.py`` that
 contains::
 
-  import pycoda as pcd
+  import pyDictH5 as pcd
   import numpy as np
 
   class my_data(pcd.data):
@@ -279,7 +279,7 @@ We can initialize and populate this data type, and utilize the
    [ 0.   0.5  1. ]
    [ 0.   0.5  1. ]]
 
-A major advantage of sub-classing ``pycoda.data`` is that, so long
+A major advantage of sub-classing ``pyDictH5.data`` is that, so long
 as the subclass is available consistently between write and read, the
 dtype is preserved. This is why it is useful to define sub-classes in
 modules (or packages) of their own. Then, so long as those modules or
