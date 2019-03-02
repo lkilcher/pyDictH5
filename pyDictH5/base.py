@@ -166,7 +166,7 @@ class data(dict):
         return out
 
     def __getitem__(self, indx):
-        if not isinstance(indx, str) or '.' not in indx:
+        if not isinstance(indx, six.string_types) or '.' not in indx:
             return dict.__getitem__(self, indx)
         else:
             try:
