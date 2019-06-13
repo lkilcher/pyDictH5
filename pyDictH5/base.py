@@ -159,8 +159,8 @@ class data(dict):
                 out[nm] = self[nm][indx]
                 if raise_on_empty_array and \
                    (np.array(out[nm].shape) == 0).any():
-                    raise IndexError('The indexing object yields '
-                                     'empty arrays.')
+                    raise IndexError("The indexing object yields "
+                                     "empty arrays for field '{}'.".format(nm))
             else:
                 out[nm] = self[nm]
         return out
