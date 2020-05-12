@@ -29,7 +29,8 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
             tmp = bm.data(dat)
             tmp.to_hdf5(buf.create_group(nm),
                         chunks=chunks, compression=compression)
-            buf[nm].attrs['__pyclass__'] = pkl.dumps(dict)
+            # This type(dat) so that we can support 
+            buf[nm].attrs['__pyclass__'] = pkl.dumps(type(dat))
         else:
             if isinstance(dat, np.ndarray):
                 if dat.dtype == 'O':
