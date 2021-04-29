@@ -150,7 +150,10 @@ def load_hdf5(buf, group=None, dat_class=None):
                 if type_str == 'pickled object':
                     out[nm] = pkl.loads(dat[()])
                 elif type_str == 'non-array scalar':
-                    out[nm] = pkl.decode(dat[()])
+                    try:
+                        out[nm] = pkl.decode(dat[()])
+                    except KeyError:
+                        out._set(nm, pkl.decode(dat[()]))
                 elif (dat.dtype == 'O' and type_str == 'NumPy Object Array'):
                     shp = dat.shape
                     out[nm] = np.empty(shp, dtype='O')
