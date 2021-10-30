@@ -30,6 +30,11 @@ def loads(data):
         return pkl.loads(data)
     else:
         try:
+            if data.startswith('cdolfyn.'):
+                data = 'cdolfyn0.' + data[8:]
+        except TypeError:
+            pass
+        try:
             out = pkl.loads(data)
         except TypeError:
             out = pkl.loads(bytes(data, encoding='ASCII'))
