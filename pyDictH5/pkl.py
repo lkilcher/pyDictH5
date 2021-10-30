@@ -31,6 +31,8 @@ def loads(data):
     else:
         try:
             out = pkl.loads(data)
+        except TypeError:
+            out = pkl.loads(bytes(data, encoding='ASCII'))
         except UnicodeDecodeError:
             out = pkl.loads(data, encoding='bytes')
             out = decode(out)
