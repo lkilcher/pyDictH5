@@ -148,7 +148,10 @@ def load_hdf5(buf, group=None, dat_class=None):
                 if cls is not np.ndarray:
                     cls = pkl.loads(cls)
                 if type_str == 'pickled object':
-                    out[nm] = pkl.loads(dat[()])
+                    try:
+                        out[nm] = pkl.loads(dat[()])
+                    except KeyError:
+                        out._set(nm, pkl.loads(dat[()]))
                 elif type_str == 'non-array scalar':
                     try:
                         out[nm] = pkl.decode(dat[()])
