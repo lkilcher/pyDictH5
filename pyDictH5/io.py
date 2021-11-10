@@ -61,11 +61,11 @@ def hdf5_write(buf, indat, chunks=True, compression='gzip'):
                             name=nm, data=dat)
             else:
                 try:
-                    ds = buf.create_dataset(nm, (), data=dat)
+                    ds = buf.require_dataset(nm, (), data=dat)
                 except (TypeError, ValueError):
                     # Pickle the object.
                     val = pkl.dumps(dat)
-                    ds = buf.create_dataset(
+                    ds = buf.require_dataset(
                         nm, (), dtype='S{}'.format(len(val))
                     )
                     ds[()] = val
